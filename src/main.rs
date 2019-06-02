@@ -4,6 +4,8 @@ use std::fmt;
 use std::cmp::Ordering;
 use std::time::{Instant};
 
+const SIZE: usize = 3;
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Item(i32, State);
 
@@ -16,6 +18,19 @@ impl Ord for Item {
 impl PartialOrd for Item {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
+  }
+}
+
+enum Dir {
+  Up,
+  Down,
+  Left,
+  Right
+}
+
+impl Dir {
+  pub fn all() -> impl Iterator<Item = &'static Dir> {
+    [Dir::Up, Dir::Down, Dir::Left, Dir::Right].iter()
   }
 }
 
@@ -33,7 +48,7 @@ impl State {
 
   fn get_pos(&self, num: i32) -> Option<(usize, usize)> {
     if let Some(pos) = self.board.iter().position(|&x| x == num) {
-      return Some((pos % 3, pos / 3));
+      return Some((pos % SIZE, pos / SIZE));
     }
     
     None  
@@ -42,8 +57,8 @@ impl State {
   fn target_dis(&self, num: i32) -> i32 {
     match self.get_pos(num) {
       Some((x, y)) => {
-        let target_y = (num - 1) / 3;
-        let target_x = (num - 1) % 3;
+        let target_y = (num - 1) / SIZE as i32;
+        let target_x = (num - 1) % SIZE as i32;
 
         (x as i32 - target_x).abs() + (y as i32 - target_y).abs()
       },
@@ -55,34 +70,34 @@ impl State {
   fn neighbors(&self) -> Vec<State> {
     let zero_pos = self.get_pos(0).unwrap();
 
-    ['U', 'D', 'L', 'R'].iter()
-      .filter_map(|dir| self.move_dir(*dir, zero_pos))
+    Dir::all()
+      .filter_map(|dir| self.move_dir(dir, zero_pos))
       .collect::<Vec<State>>()
       
   }
 
-  fn move_dir(&self, dir: char, zero_pos: (usize, usize)) -> Option<State> {
+  fn move_dir(&self, dir: &Dir, zero_pos: (usize, usize)) -> Option<State> {
     let (x0, y0) = zero_pos;
     let mut b = self.board.clone();
 
     match dir {
-      'U' if y0 > 0 => {
-        b.swap(y0 * 3 + x0, (y0 - 1) * 3 + x0);
+      Dir::Up if y0 > 0 => {
+        b.swap(y0 * SIZE + x0, (y0 - 1) * SIZE + x0);
       },
-      'D' if y0 < 2 => {
-        b.swap(y0 * 3 + x0, (y0 + 1) * 3 + x0);
+      Dir::Down if y0 < 2 => {
+        b.swap(y0 * SIZE + x0, (y0 + 1) * SIZE + x0);
       },
-      'L' if x0 > 0 => {
-        b.swap(y0 * 3 + x0, y0 * 3 + (x0 - 1));
+      Dir::Left if x0 > 0 => {
+        b.swap(y0 * SIZE + x0, y0 * SIZE + (x0 - 1));
       },
-      'R' if x0 < 2 => {
-        b.swap(y0 * 3 + x0, y0 * 3 + (x0 + 1));
+      Dir::Right if x0 < 2 => {
+        b.swap(y0 * SIZE + x0, y0 * SIZE + (x0 + 1));
       }
 
       _ => return None
     };
 
-    let new_state = State { board: b};
+    let new_state = State { board: b };
 
     Some(new_state)
   }
@@ -90,10 +105,10 @@ impl State {
 
 impl fmt::Display for State {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    for y in 0..3 {
+    for y in 0..SIZE {
       write!(f, "|")?;
-      for x in 0..3 {
-        let num = self.board[y * 3 + x];
+      for x in 0..SIZE {
+        let num = self.board[y * SIZE + x];
         write!(f, "{}|", num)?;
       }
       writeln!(f, "")?;
@@ -103,7 +118,7 @@ impl fmt::Display for State {
 }
 
 fn find_path() -> Option<VecDeque<State>> {
-  let state = State { board: [1, 2, 5, 3, 4, 0, 6, 7, 8].to_vec() };
+  let state = State { board: vec![1, 2, 5, 3, 4, 0, 6, 7, 8] };
   let mut frontier = BinaryHeap::new();
   let mut previous = HashMap::new();
   let mut path_cost = HashMap::new();
